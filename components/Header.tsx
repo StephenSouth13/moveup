@@ -1,29 +1,75 @@
-const PHONE_NUMBER = '1900 1234'
-const LOGO_TEXT = 'MoveUp'
+"use client";
+
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+
+const PHONE_NUMBER = '1900 1234';
+const LOGO_TEXT = 'MOVEUP';
 
 export default function Header() {
-  return (
-    <header className="sticky top-0 z-50 w-full bg-white border-b border-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-        <span className="text-xl font-light text-slate-900">{LOGO_TEXT}</span>
+  const [user, setUser] = useState<any>(null);
+  const supabase = createClient();
 
-        <div className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors">
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-            />
-          </svg>
-          <span className="text-sm font-medium">{PHONE_NUMBER}</span>
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, [supabase]);
+
+  return (
+    <header className="sticky top-0 z-50 w-full bg-white border-b border-slate-100 font-montserrat">
+      {/* Top Bar cực mỏng cho hotline - giống kiểu các trang Global */}
+      <div className="w-full bg-slate-50 border-b border-slate-100 py-2">
+        <div className="max-w-7xl mx-auto px-6 flex justify-end">
+          <a href={`tel:${PHONE_NUMBER}`} className="text-[10px] tracking-[0.2em] font-medium text-slate-400 hover:text-blue-600 transition-colors uppercase">
+            Support: {PHONE_NUMBER}
+          </a>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
+        {/* Logo: Font Montserrat nhưng để font-light hoặc medium cho sang, không để bold dày */}
+        <Link href="/" className="group">
+          <span className="text-2xl font-light tracking-[0.3em] text-slate-900">
+            {LOGO_TEXT.split('').join(' ')}
+          </span>
+        </Link>
+
+        {/* Navigation: Chữ nhỏ, giãn cách rộng (tracking-widest) */}
+        <nav className="hidden md:flex items-center gap-12">
+          {['Courses', 'Paths', 'About', 'Contact'].map((item) => (
+            <Link 
+              key={item}
+              href={`/${item.toLowerCase()}`} 
+              className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 hover:text-slate-900 transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-slate-900 hover:after:w-full after:transition-all"
+            >
+              {item}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Action Button: Hình chữ nhật sắc cạnh, không bo góc (rounded-none) hoặc rất ít */}
+        <div className="flex items-center gap-6">
+          {user ? (
+            <Link 
+              href="/dashboard" 
+              className="text-[11px] font-bold uppercase tracking-[0.2em] border border-slate-900 px-8 py-3 hover:bg-slate-900 hover:text-white transition-all duration-500"
+            >
+              My Learning
+            </Link>
+          ) : (
+            <Link 
+              href="/auth/login" 
+              className="text-[11px] font-bold uppercase tracking-[0.2em] bg-slate-900 text-white px-8 py-3 border border-slate-900 hover:bg-white hover:text-slate-900 transition-all duration-500"
+            >
+              Get Started
+            </Link>
+          )}
         </div>
       </div>
     </header>
-  )
+  );
 }

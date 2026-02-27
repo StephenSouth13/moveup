@@ -4,33 +4,51 @@ import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
-interface User {
+// Types khớp với Database Schema
+interface Enrollment {
   id: string
-  email?: string
+  courses: {
+    id: string
+    title: string
+    thumbnail_url: string
+  }
+  lesson_progress: { completed: boolean }[]
 }
 
 export default function Dashboard() {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any>(null)
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+    const fetchDashboardData = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
         router.push('/auth/login')
-      } else {
-        setUser(user)
+        return
       }
+      setUser(user)
+
+      // Fetch Enrollments join Courses và Lesson Progress
+      const { data } = await supabase
+        .from('enrollments')
+        .select(`
+          id,
+          courses (id, title, thumbnail_url),
+          lesson_progress (completed)
+        `)
+        .eq('user_id', user.id)
+
+      setEnrollments(data as any || [])
       setIsLoading(false)
     }
 
-    checkUser()
+    fetchDashboardData()
   }, [router, supabase])
 
   const handleLogout = async () => {
@@ -38,83 +56,91 @@ export default function Dashboard() {
     router.push('/')
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-slate-600">Đang tải...</p>
-        </div>
-      </div>
-    )
-  }
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center font-montserrat tracking-widest text-[10px] uppercase">Loading...</div>
+
+  // Tính toán chỉ số thực tế từ Database
+  const completedCourses = enrollments.filter(e => 
+    e.lesson_progress.length > 0 && e.lesson_progress.every(p => p.completed)
+  ).length
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <Link href="/">
-            <span className="text-xl font-light text-slate-900">MoveUp</span>
+    <div className="min-h-screen bg-white font-montserrat">
+      {/* Premium Header */}
+      <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <Link href="/" className="text-xl font-light tracking-[0.3em] text-slate-900 uppercase">
+            MOVEUP<span className="text-blue-600">.</span>
           </Link>
-          <div className="flex items-center gap-6">
-            <span className="text-sm text-slate-600">{user?.email}</span>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
-            >
-              Đăng xuất
+          <div className="flex items-center gap-8">
+            <span className="hidden md:block text-[10px] font-bold uppercase tracking-widest text-slate-400">{user?.email}</span>
+            <button onClick={handleLogout} className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 border-l border-slate-100 pl-8 hover:text-blue-600 transition-colors">
+              Sign Out
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
-          <Link href="/courses">
-            <button className="w-full px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
-              Khám phá khóa học
-            </button>
-          </Link>
-          <Link href="/cart">
-            <button className="w-full px-6 py-3 border border-slate-200 text-slate-900 font-medium rounded-lg hover:bg-slate-50 transition-colors">
-              Xem giỏ hàng
-            </button>
-          </Link>
+      <main className="max-w-7xl mx-auto px-6 py-20">
+        {/* Welcome Section - Leaders Create Style */}
+        <div className="mb-24">
+          <span className="text-[10px] tracking-[0.4em] text-blue-600 uppercase font-black mb-6 block">Member Dashboard</span>
+          <h1 className="text-5xl md:text-7xl font-light tracking-tighter text-slate-900 leading-none">
+            Welcome back, <br />
+            <span className="font-semibold">{user?.email?.split('@')[0]}</span>
+          </h1>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {/* Enrolled Courses Card */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <h3 className="text-sm font-medium text-slate-600 mb-2">Khóa học đã đăng ký</h3>
-            <p className="text-3xl font-light text-slate-900">-</p>
-          </div>
-
-          {/* In Progress Card */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <h3 className="text-sm font-medium text-slate-600 mb-2">Đang học</h3>
-            <p className="text-3xl font-light text-slate-900">-</p>
-          </div>
-
-          {/* Completed Card */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <h3 className="text-sm font-medium text-slate-600 mb-2">Hoàn thành</h3>
-            <p className="text-3xl font-light text-slate-900">-</p>
-          </div>
+        {/* Real-time Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-16 mb-24">
+          {[
+            { label: 'Active Programs', val: enrollments.length },
+            { label: 'Completion Rate', val: `${enrollments.length > 0 ? Math.round((completedCourses / enrollments.length) * 100) : 0}%` },
+            { label: 'Achievements', val: completedCourses }
+          ].map((stat, i) => (
+            <div key={i} className="border-t border-slate-100 pt-8">
+              <span className="block text-[10px] uppercase tracking-[0.3em] text-slate-400 mb-4">{stat.label}</span>
+              <span className="text-4xl font-light text-slate-900">{stat.val}</span>
+            </div>
+          ))}
         </div>
 
-        {/* Enrolled Courses Section */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-2xl font-light text-slate-900 mb-6">Khóa học của bạn</h2>
-          <p className="text-slate-500 text-center py-12">
-            Bạn chưa đăng ký khóa học nào. Hãy{' '}
-            <Link href="/courses" className="text-blue-600 hover:text-blue-700">
-              khám phá các khóa học
-            </Link>
-            .
-          </p>
+        {/* My Programs - Flat UI Grid */}
+        <div className="mb-12 flex justify-between items-end border-b border-slate-100 pb-8">
+          <h2 className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-900">Current Programs</h2>
+          <Link href="/courses" className="text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-slate-900 transition-colors">Browse Catalog —&gt;</Link>
         </div>
+
+        {enrollments.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16">
+            {enrollments.map((item) => {
+              const progress = item.lesson_progress.length > 0 
+                ? Math.round((item.lesson_progress.filter(p => p.completed).length / item.lesson_progress.length) * 100) 
+                : 0
+              return (
+                <div key={item.id} className="group cursor-pointer">
+                  <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden mb-8">
+                    <img 
+                      src={item.courses.thumbnail_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4'} 
+                      alt=""
+                      className="object-cover w-full h-full grayscale group-hover:grayscale-0 transition-all duration-700"
+                    />
+                    <div className="absolute bottom-0 left-0 h-[2px] bg-blue-600 transition-all duration-1000" style={{ width: `${progress}%` }} />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight mb-2 group-hover:text-blue-600 transition-colors">{item.courses.title}</h3>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[9px] uppercase tracking-[0.2em] text-slate-400">{progress}% Completed</span>
+                    <Link href={`/learn/${item.courses.id}`} className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-900 pb-1">Continue</Link>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="py-24 text-center border border-dashed border-slate-100">
+            <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400 mb-8">No active enrollments found</p>
+            <Link href="/courses" className="px-10 py-4 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-blue-600 transition-all">Start Your Journey</Link>
+          </div>
+        )}
       </main>
     </div>
   )
